@@ -1,110 +1,98 @@
-// Initialize animations after page load
-window.onload = () => {
-  setTimeout(() => {
-    document.body.classList.remove("not-loaded");
-  }, 1000);
-};
-
-// Handle model loading and UI updates
 document.addEventListener('DOMContentLoaded', function() {
-  const model = document.getElementById('flower-model');
-  const message = document.getElementById('message');
-  const loadingOverlay = document.getElementById('loading-overlay');
-  const loadingError = document.querySelector('.loading-error');
+  const modelViewer = document.getElementById('flower-model');
+  const loadingOverlay = document.querySelector('.loading-overlay');
+  const loadingText = document.querySelector('.loading-text');
+  let loadingProgress = 0;
   
-  // Set a timeout to detect if loading takes too long
-  const loadingTimeout = setTimeout(() => {
-    if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
-      console.warn('Model loading timeout - showing error message');
-      if (loadingError) {
-        loadingError.style.display = 'block';
-        loadingError.textContent = 'Loading timeout. Try refreshing the page or check your internet connection.';
-      }
+  // Try multiple model sources in case one fails
+  const modelSources = [
+    // Try GitHub raw content URL (update with your actual GitHub username and repo)
+    "https://raw.githubusercontent.com/your-username/your-repo/main/models/flower_bouquet.glb",
+    // Try relative path
+    "models/flower_bouquet.glb",
+    // Fallback to a sample model if all else fails
+    "https://modelviewer.dev/shared-assets/models/Bouquet.glb"
+  ];
+  
+  let currentSourceIndex = 0;
+  
+  function tryLoadModel() {
+    if (currentSourceIndex >= modelSources.length) {
+      // We've tried all sources, show error
+      handleModelError("Couldn't load any model source");
+      return;
     }
-  }, 15000); // 15 seconds timeout
-  
-  if (!model) {
-    console.error('Model element not found!');
-    return;
+    
+    const modelSource = modelSources[currentSourceIndex];
+    console.log(`Trying to load model from: ${modelSource}`);
+    
+    modelViewer.src = modelSource;
+    currentSourceIndex++;
   }
   
-  // Show loading progress
-  model.addEventListener('progress', (event) => {
-    const progress = Math.floor(event.detail.totalProgress * 100);
-    const loadingText = document.querySelector('.loading-text');
-    if (loadingText) {
-      loadingText.textContent = `tunggu bentar yh sayang... ${progress}%`;
-    }
-    console.log(`Loading progress: ${progress}%`);
-  });
+  function updateLoadingProgress(progress) {
+    loadingProgress = Math.min(100, progress);
+    loadingText.textContent = `tunggu bentar yh sayang... ${loadingProgress}%`;
+  }
   
-  // Hide loading overlay when model is loaded
-  model.addEventListener('load', () => {
-    clearTimeout(loadingTimeout);
-    console.log('Model loaded successfully');
-    
-    if (loadingOverlay) {
-      loadingOverlay.classList.add('hidden');
-    }
-    
-    // Show message after model is loaded
-    setTimeout(() => {
-      if (message) {
-        message.classList.add('show');
-      }
-    }, 1000);
-  });
+  function handleModelLoad() {
+    console.log("Model loaded successfully!");
+    loadingOverlay.classList.add('hidden');
+    document.body.classList.remove('not-loaded');
+  }
   
-  // Handle loading errors
-  model.addEventListener('error', (error) => {
-    clearTimeout(loadingTimeout);
-    console.error('Error loading model:', error);
+  function handleModelError(error) {
+    console.error("Error loading model:", error);
     
-    const loadingText = document.querySelector('.loading-text');
-    if (loadingText) {
-      loadingText.textContent = 'Error memuat model.';
-    }
-    
-    if (loadingError) {
-      loadingError.style.display = 'block';
-      
-      // Try to provide more specific error information
-      let errorMessage = 'Please check your internet connection and try again.';
-      
-      if (error.detail && error.detail.type) {
-        if (error.detail.type.includes('CORS')) {
-          errorMessage = 'CORS error: The model cannot be loaded from this source. Try hosting the model file on GitHub.';
-        } else if (error.detail.type.includes('404')) {
-          errorMessage = 'Model file not found. Check if the file exists and the path is correct.';
-        } else if (error.detail.type.includes('network')) {
-          errorMessage = 'Network error. Check your internet connection.';
+    if (currentSourceIndex < modelSources.length) {
+      console.log("Trying next model source...");
+      tryLoadModel();
+    } else {
+      // Show error but still remove loading overlay after a delay
+      setTimeout(() => {
+        loadingOverlay.classList.add('hidden');
+        document.body.classList.remove('not-loaded');
+        
+        // Add fallback content
+        const fallback = document.querySelector('.model-fallback');
+        if (fallback) {
+          fallback.innerHTML = '<p class="loading-error">Could not load 3D model.<br>But our love is still in full bloom! ❤️</p>';
         }
-      }
-      
-      loadingError.textContent = `Error: ${errorMessage}`;
+      }, 1000);
     }
-    
-    // Show a fallback image or content
-    const modelContainer = document.querySelector('.model-container');
-    if (modelContainer) {
-      // Create a fallback element
-      const fallback = document.createElement('div');
-      fallback.className = 'model-fallback';
-      fallback.innerHTML = '<p>❤️ Happy Graduation! ❤️</p>';
-      
-      // Insert before the model-viewer
-      modelContainer.insertBefore(fallback, model);
-      
-      // Hide the model-viewer
-      model.style.display = 'none';
-    }
+  }
+  
+  // Listen for model-viewer events
+  modelViewer.addEventListener('load', handleModelLoad);
+  modelViewer.addEventListener('error', handleModelError);
+  
+  // Listen for progress events
+  modelViewer.addEventListener('progress', (event) => {
+    updateLoadingProgress(Math.floor(event.detail.totalProgress * 100));
   });
   
-  // Add this to force the model to load even if it's not visible
-  model.setAttribute('loading', 'eager');
+  // Start loading the first model source
+  tryLoadModel();
+  
+  // Ensure loading overlay is removed even if events don't fire
+  setTimeout(() => {
+    if (loadingOverlay.classList.contains('hidden') === false) {
+      console.log("Timeout reached, removing loading overlay");
+      loadingOverlay.classList.add('hidden');
+      document.body.classList.remove('not-loaded');
+    }
+  }, 15000);
+  
+  // Add falling petals animation
+  const petalsContainer = document.querySelector('.petals-container');
+  if (petalsContainer) {
+    for (let i = 0; i < 15; i++) {
+      const petal = document.createElement('div');
+      petal.className = 'petal';
+      petal.style.left = `${Math.random() * 100}%`;
+      petal.style.animationDuration = `${10 + Math.random() * 10}s`;
+      petal.style.animationDelay = `${Math.random() * 10}s`;
+      petalsContainer.appendChild(petal);
+    }
+  }
 });
-
-// Function to check if the site is running on GitHub Pages
-function isGitHubPages() {
-  return window.location.hostname.includes('github.io');
-}
